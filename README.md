@@ -1,4 +1,5 @@
 # Sprint Board
+<img width="1646" height="805" alt="Bildschirmfoto 2026-11-08 um 18 02 30" src="https://github.com/user-attachments/assets/855509fd-fe6d-4eb1-8524-4f46601c3dd9" />
 
 A small, self-contained Scrum board that runs in your browser. No accounts, no database, no build step.
 
