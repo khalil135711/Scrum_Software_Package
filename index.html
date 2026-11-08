@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sprint Board</title>
+<style>
+:root{--bg:#f4f6f8;--surface:#fff;--ink:#17212b;--mute:#5d6b7a;--line:#d9dfe5;--teal:#0e7c6b;--amber:#c9820a;--slate:#8a97a5;--danger:#b3361f;--r:6px;
+--font:"Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif}
+@media (prefers-color-scheme:dark){:root{--bg:#12181e;--surface:#1b232b;--ink:#e8edf2;--mute:#9aa7b4;--line:#2d3944;--teal:#3cc2a9;--amber:#e3a83a;--slate:#5f6d7b;--danger:#f08a76}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 var(--font)}
+header{background:var(--surface);border-bottom:1px solid var(--line);padding:14px 24px;display:flex;flex-wrap:wrap;gap:12px 28px;align-items:center}
+h1{font-size:20px;margin:0;font-weight:700;letter-spacing:-.01em}
+nav{display:flex;gap:4px}
+nav button{background:none;border:0;padding:8px 14px;font:inherit;color:var(--mute);border-bottom:2px solid transparent;cursor:pointer}
+nav button[aria-current=true]{color:var(--ink);border-color:var(--teal);font-weight:600}
+.spacer{flex:1}
+main{max-width:1100px;margin:0 auto;padding:24px}
+button,input,select{font:inherit;color:inherit}
+.btn{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:6px 12px;cursor:pointer}
+.btn:hover{border-color:var(--slate)}
+.btn.pri{background:var(--teal);border-color:var(--teal);color:#fff}
+.btn.sm{padding:2px 8px;font-size:13px}
+.btn.del{color:var(--danger)}
+:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+input,select{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:7px 10px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:20px}
+.panel h2{margin:0 0 4px;font-size:16px}
+.muted{color:var(--mute);font-size:14px}
+.ribbon{display:flex;height:12px;border-radius:3px;overflow:hidden;background:var(--line);margin:12px 0 6px}
+.ribbon i{display:block;transition:width .25s}
+.k-done{background:var(--teal)}.k-doing{background:var(--amber)}.k-todo{background:var(--slate)}
+.legend{display:flex;gap:16px;font-size:13px;color:var(--mute)}
+.legend b{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px}
+.cols{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.col{background:var(--bg);border:1px dashed var(--line);border-radius:var(--r);padding:10px;min-height:180px}
+.col.over{border-color:var(--teal);background:color-mix(in srgb,var(--teal) 8%,var(--bg))}
+.col h3{margin:0 0 10px;font-size:14px;display:flex;justify-content:space-between}
+.card{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--slate);border-radius:var(--r);padding:10px;margin-bottom:8px;cursor:grab}
+.card[data-s=doing]{border-left-color:var(--amber)}.card[data-s=done]{border-left-color:var(--teal)}
+.card p{margin:0 0 8px}
+.card .row{justify-content:space-between}
+.pts{background:var(--bg);border:1px solid var(--line);border-radius:99px;padding:0 9px;font-size:13px;font-weight:600}
+.item{display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.item:first-child{border-top:0}.item span.t{flex:1}
+.empty{color:var(--mute);padding:12px 0}
+.bars{display:flex;align-items:flex-end;gap:14px;height:160px;padding-top:10px}
+.bar{flex:1;max-width:70px;text-align:center;font-size:12px}
+.bar div{background:var(--teal);border-radius:3px 3px 0 0;min-height:2px}
+svg text{fill:var(--mute);font:12px var(--font)}
+@media (max-width:760px){.cols{grid-template-columns:1fr}main{padding:14px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Sprint Board</h1>
+  <nav id="tabs">
+    <button data-view="board">Board</button>
+    <button data-view="backlog">Backlog</button>
+    <button data-view="report">Reports</button>
+  </nav>
+  <span class="spacer"></span>
+  <button class="btn sm" data-act="export">Export data</button>
+  <label class="btn sm">Import data<input id="imp" type="file" accept="application/json" hidden></label>
+  <button class="btn sm del" data-act="reset">Reset demo data</button>
+</header>
+<main id="app"></main>
+<script>
+const KEY='sprint-board-v1', PTS=[1,2,3,5,8,13], FLOW=['todo','doing','done'];
+const LABEL={todo:'To do',doing:'In progress',done:'Done'};
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,9);
+const seed=()=>({view:'board',sprint:null,history:[],stories:[
+ ['Sign-in with company SSO',8],['Export reports as PDF',5],['Dark mode for dashboard',3],
+ ['Fix slow search on large projects',5],['Email digest of weekly activity',3],['Role-based permissions',13]
+].map(([title,pts])=>({id:uid(),title,pts,status:'backlog'}))});
+let S=load();
+function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&Array.isArray(d.stories))return d}catch(e){}return seed()}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+const inSprint=()=>S.stories.filter(s=>FLOW.includes(s.status));
+const sum=a=>a.reduce((n,s)=>n+s.pts,0);
+const remaining=()=>sum(inSprint().filter(s=>s.status!=='done'));
+function log(){if(!S.sprint)return;S.sprint.log.push({d:(Date.now()-S.sprint.start)/864e5,r:remaining()})}
+function commit(fn){fn();save();render()}
+
+const acts={
+ add(f){const t=f.title.value.trim();if(!t)return;commit(()=>S.stories.push({id:uid(),title:t,pts:+f.pts.value,status:'backlog'}))},
+ start(f){commit(()=>{S.sprint={name:f.name.value.trim()||'Sprint',goal:f.goal.value.trim(),days:Math.max(1,+f.days.value||14),start:Date.now(),committed:0,log:[]};log()})},
+};
+document.addEventListener('submit',e=>{e.preventDefault();const a=e.target.dataset.form;if(acts[a])acts[a](e.target)});
+document.addEventListener('click',e=>{
+ const v=e.target.closest('[data-view]');if(v){S.view=v.dataset.view;save();return render()}
+ const b=e.target.closest('[data-act]');if(!b)return;
+ const id=b.dataset.id,st=S.stories.find(s=>s.id===id),a=b.dataset.act;
+ if(a==='sprint')commit(()=>{st.status='todo';S.sprint.committed+=st.pts;log()});
+ if(a==='back')commit(()=>{if(FLOW.includes(st.status))S.sprint.committed-=st.pts;st.status='backlog';log()});
+ if(a==='next'||a==='prev')commit(()=>{st.status=FLOW[FLOW.indexOf(st.status)+(a==='next'?1:-1)];log()});
+ if(a==='del'&&confirm('Delete this story?'))commit(()=>{if(FLOW.includes(st.status)&&S.sprint)S.sprint.committed-=st.pts;S.stories=S.stories.filter(s=>s!==st);log()});
+ if(a==='finish'&&confirm('Complete this sprint? Unfinished stories return to the backlog.'))commit(()=>{
+  const done=S.stories.filter(s=>s.status==='done');
+  S.history.push({name:S.sprint.name,committed:S.sprint.committed,done:sum(done),stories:done.length});
+  S.stories=S.stories.filter(s=>s.status!=='done');
+  S.stories.forEach(s=>{if(FLOW.includes(s.status))s.status='backlog'});S.sprint=null});
+ if(a==='export'){const l=document.createElement('a');l.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,2)],{type:'application/json'}));l.download='sprint-board-data.json';l.click()}
+ if(a==='reset'&&confirm('Replace all data with the demo backlog?'))commit(()=>{S=seed()});
+});
+document.getElementById('imp').addEventListener('change',async e=>{
+ try{const d=JSON.parse(await e.target.files[0].text());if(!Array.isArray(d.stories))throw 0;S=d;save();render()}
+ catch(_){alert('That file is not a valid Sprint Board export.')}e.target.value=''});
+document.addEventListener('dragstart',e=>{const c=e.target.closest('.card');if(c)e.dataTransfer.setData('text/plain',c.dataset.id)});
+document.addEventListener('dragover',e=>{const c=e.target.closest('.col');if(c){e.preventDefault();c.classList.add('over')}});
+document.addEventListener('dragleave',e=>{const c=e.target.closest('.col');if(c)c.classList.remove('over')});
+document.addEventListener('drop',e=>{const c=e.target.closest('.col');if(!c)return;e.preventDefault();
+ const st=S.stories.find(s=>s.id===e.dataTransfer.getData('text/plain'));if(st)commit(()=>{st.status=c.dataset.col;log()})});
+
+function ribbon(){
+ const t=sum(inSprint())||1,p=k=>sum(inSprint().filter(s=>s.status===k));
+ return `<div class="ribbon" role="img" aria-label="Done ${p('done')}, in progress ${p('doing')}, to do ${p('todo')} points">
+ ${FLOW.slice().reverse().map(k=>`<i class="k-${k}" style="width:${p(k)/t*100}%"></i>`).join('')}</div>
+ <div class="legend">${FLOW.slice().reverse().map(k=>`<span><b class="k-${k}"></b>${LABEL[k]} ${p(k)}</span>`).join('')}</div>`}
+
+function sprintPanel(){
+ if(!S.sprint)return `<div class="panel"><h2>Start a sprint</h2><p class="muted">Name the sprint, then pull stories in from the backlog.</p>
+ <form data-form="start" class="row"><input name="name" placeholder="Sprint name" required><input name="goal" placeholder="Sprint goal" size="32">
+ <label class="muted">Length <input name="days" type="number" min="1" max="60" value="14" style="width:70px"> days</label>
+ <button class="btn pri">Start sprint</button></form></div>`;
+ const sp=S.sprint,day=Math.min(sp.days,Math.floor((Date.now()-sp.start)/864e5)+1);
+ return `<div class="panel"><div class="row"><div><h2>${esc(sp.name)}</h2><div class="muted">${esc(sp.goal||'No goal set')} · Day ${day} of ${sp.days}</div></div>
+ <span class="spacer" style="flex:1"></span><button class="btn" data-act="finish">Complete sprint</button></div>${ribbon()}</div>`}
+
+function card(s){return `<div class="card" draggable="true" data-id="${s.id}" data-s="${s.status}"><p>${esc(s.title)}</p>
+ <div class="row"><span class="pts">${s.pts}</span><span>
+ ${s.status==='todo'?`<button class="btn sm" data-act="back" data-id="${s.id}" title="Return to backlog">Backlog</button>`:`<button class="btn sm" data-act="prev" data-id="${s.id}" aria-label="Move back">←</button>`}
+ ${s.status!=='done'?`<button class="btn sm" data-act="next" data-id="${s.id}" aria-label="Move forward">→</button>`:''}</span></div></div>`}
+
+function board(){
+ if(!S.sprint)return sprintPanel();
+ return sprintPanel()+`<div class="cols">${FLOW.map(k=>{const l=inSprint().filter(s=>s.status===k);
+ return `<section class="col" data-col="${k}"><h3>${LABEL[k]}<span class="muted">${sum(l)} pts</span></h3>${l.map(card).join('')||'<div class="empty">Drop stories here</div>'}</section>`}).join('')}</div>`}
+
+function backlog(){
+ const b=S.stories.filter(s=>s.status==='backlog');
+ return `<div class="panel"><h2>Add a story</h2><form data-form="add" class="row"><input name="title" placeholder="As a user, I can…" size="42" required>
+ <label class="muted">Points <select name="pts">${PTS.map(p=>`<option ${p===3?'selected':''}>${p}</option>`).join('')}</select></label><button class="btn pri">Add story</button></form></div>
+ <div class="panel"><h2>Product backlog</h2><div class="muted">${b.length} stories · ${sum(b)} points${S.sprint?'':' · Start a sprint on the Board tab to plan work'}</div>
+ ${b.map(s=>`<div class="item"><span class="pts">${s.pts}</span><span class="t">${esc(s.title)}</span>
+ ${S.sprint?`<button class="btn sm" data-act="sprint" data-id="${s.id}">Add to sprint</button>`:''}<button class="btn sm del" data-act="del" data-id="${s.id}">Delete</button></div>`).join('')||'<div class="empty">The backlog is empty. Add a story above.</div>'}</div>`}
+
+function burndown(){
+ const sp=S.sprint;if(!sp)return `<div class="empty">Start a sprint to see its burndown.</div>`;
+ const W=620,H=220,L=36,B=26,T=10,R=10,N=sp.days,max=Math.max(sp.committed,1);
+ const X=d=>L+Math.min(d,N)/N*(W-L-R),Y=r=>T+(1-r/max)*(H-T-B);
+ const now=(Date.now()-sp.start)/864e5;let pts=sp.log.slice();pts.push({d:now,r:remaining()});
+ let path=`M${X(pts[0].d)} ${Y(pts[0].r)}`;for(let i=1;i<pts.length;i++)path+=` H${X(pts[i].d)} V${Y(pts[i].r)}`;
+ return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Burndown chart">
+ <line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="var(--line)"/><line x1="${L}" y1="${T}" x2="${L}" y2="${H-B}" stroke="var(--line)"/>
+ <line x1="${X(0)}" y1="${Y(sp.committed)}" x2="${X(N)}" y2="${Y(0)}" stroke="var(--slate)" stroke-dasharray="5 4"/>
+ <path d="${path}" fill="none" stroke="var(--teal)" stroke-width="2.5"/>
+ <text x="${L-6}" y="${T+8}" text-anchor="end">${max}</text><text x="${L-6}" y="${H-B}" text-anchor="end">0</text>
+ <text x="${L}" y="${H-6}">Day 0</text><text x="${W-R}" y="${H-6}" text-anchor="end">Day ${N}</text></svg>
+ <div class="legend"><span><b class="k-done"></b>Remaining points</span><span><b class="k-todo"></b>Ideal pace</span></div>`}
+
+function report(){
+ const h=S.history,m=Math.max(...h.map(x=>x.done),1),avg=h.length?Math.round(sum(h.map(x=>({pts:x.done})))/h.length*10)/10:0;
+ return `<div class="panel"><h2>Burndown</h2><div class="muted">${S.sprint?esc(S.sprint.name):'No active sprint'}</div>${burndown()}</div>
+ <div class="panel"><h2>Velocity</h2><div class="muted">${h.length?`Average ${avg} points per sprint over ${h.length} sprint${h.length>1?'s':''}`:'Complete a sprint to start tracking velocity.'}</div>
+ <div class="bars">${h.map(x=>`<div class="bar"><div style="height:${x.done/m*130}px"></div>${x.done}<br><span class="muted">${esc(x.name)}</span></div>`).join('')}</div></div>`}
+
+function render(){
+ document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.view===S.view));
+ document.getElementById('app').innerHTML={board,backlog,report}[S.view]();
+}
+render();
+</script>
+</body>
+</html>
