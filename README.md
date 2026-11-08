@@ -20,7 +20,7 @@ Double-click `index.html`. That's it.
 
 ### Option B: tiny local server (recommended)
 ```bash
-cd sprint-board
+git clone https://github.com/khalil135711/Scrum_Software_Package && cd Scrum_Software_Package
 python serve.py          # opens http://localhost:8000
 python serve.py 3000     # use a different port
 ```
